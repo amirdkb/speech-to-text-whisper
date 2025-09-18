@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Whisper model settings
-    model_name: str = "vhdm/whisper-large-fa-v1 "  # Good balance for 6GB GPU
+    model_name: str = "vhdm/whisper-large-fa-v1"  # Good balance for 6GB GPU
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     compute_type: str = "float16" if torch.cuda.is_available() else "float32"
     
