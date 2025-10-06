@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/v1/speech", tags=["Speech to Text"])
         500: {"model": ErrorResponse, "description": "Internal Server Error"}
     },
     summary="Transcribe audio to text",
-    description="Upload an audio file and get the transcribed text. Supports multiple languages including Persian."
+    description="Upload an audio file and get the transcribed text. Automatically handles long files with chunking. Supports multiple languages including Persian."
 )
 async def transcribe_audio(
     file: UploadFile = File(..., description="Audio file to transcribe"),
@@ -31,6 +31,7 @@ async def transcribe_audio(
 ):
     """
     Transcribe an audio file to text using Whisper model.
+    Automatically chunks long files (>25 seconds) for better processing.
     
     - **file**: Audio file (supported formats: wav, mp3, m4a, flac, aac, ogg, wma)
     - **language**: Optional language code to force specific language detection
@@ -41,6 +42,35 @@ async def transcribe_audio(
         raise
     except Exception as e:
         logger.error(f"Unexpected error in transcribe endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post(
+    "/transcribe-detailed",
+    responses={
+        400: {"model": ErrorResponse, "description": "Bad Request"},
+        413: {"model": ErrorResponse, "description": "File Too Large"},
+        500: {"model": ErrorResponse, "description": "Internal Server Error"}
+    },
+    summary="Transcribe audio with detailed processing info",
+    description="Upload an audio file and get transcribed text plus detailed information about the processing (chunking, etc.)"
+)
+async def transcribe_audio_detailed(
+    file: UploadFile = File(..., description="Audio file to transcribe"),
+    language: Optional[str] = Form(None, description="Language code")
+):
+    """
+    Transcribe an audio file with detailed processing information.
+    Shows chunking details and processing method used.
+    
+    - **file**: Audio file to transcribe
+    - **language**: Optional language code
+    """
+    try:
+        return await speech_controller.transcribe_audio_with_chunks_info(file, language)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in transcribe-detailed endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post(
@@ -69,6 +99,32 @@ async def get_file_info(
         logger.error(f"Unexpected error in file-info endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.post(
+    "/file-preview",
+    responses={
+        400: {"model": ErrorResponse, "description": "Bad Request"},
+        413: {"model": ErrorResponse, "description": "File Too Large"}
+    },
+    summary="Preview how file will be processed",
+    description="Get information about how an audio file will be processed (chunking details, estimated time, etc.)"
+)
+async def get_file_processing_preview(
+    file: UploadFile = File(..., description="Audio file to analyze")
+):
+    """
+    Get information about how a file will be processed.
+    Shows if chunking will be used and estimated processing time.
+    
+    - **file**: Audio file to analyze
+    """
+    try:
+        return await speech_controller.get_file_info_with_chunking_preview(file)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in file-preview endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get(
     "/languages",
     response_model=List[str],
@@ -91,11 +147,11 @@ async def get_supported_languages():
     "/model-info",
     response_model=dict,
     summary="Get model information",
-    description="Get information about the loaded Whisper model."
+    description="Get information about the loaded Whisper model including chunking settings."
 )
 async def get_model_info():
     """
-    Get information about the loaded model.
+    Get information about the loaded model and processing settings.
     """
     try:
         return speech_controller.get_model_info()

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     
     # Server settings
     host: str = "127.0.0.1"
-    port: int = 8000
+    port: int = 8001
     
     # Whisper model settings
     model_name: str = "vhdm/whisper-large-fa-v1"  # Good balance for 6GB GPU

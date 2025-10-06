@@ -58,7 +58,7 @@ class FileService:
             
             # Reset file pointer for potential reuse
             await file.seek(0)
-            
+
             logger.debug(f"Saved temporary file: {temp_file_path}")
             return temp_file_path
             
